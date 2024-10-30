@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, TextInput, View, Image, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { Button, TextInput, View, Image, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { StatusBar } from 'expo-status-bar';
@@ -15,10 +15,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store'
 import api from '@/src/config/apiConfig';
 import { Picker } from '@react-native-picker/picker';
+import Toast from 'react-native-toast-message';
 
 
 
 interface IUser {
+    userId:string,
     fullName: string;
     phoneNumber: string,
     homeAddress: string,
@@ -45,6 +47,7 @@ const UpdateProfileScreen = () => {
     const [states, setStates] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
     const [lgas, setLgas] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
     const [stateId, setStateId] = useState<number>(1);
+    const [loading, setLoading] = useState(false);
     
 
 
@@ -73,7 +76,7 @@ const UpdateProfileScreen = () => {
             if (result) {
                 const parsedResult: IUser = JSON.parse(result); // Parse the stored JSON string
                 // console.log({ inStore: parsedResult })
-                setInitialValues({ ...parsedResult }); // Set as initial values for Formik
+                setInitialValues({ ...parsedResult}); // Set as initial values for Formik
                 // console.log('Data retrieved:', parsedResult);
             } else {
                 // console.log('No data found for key:', key);
@@ -95,6 +98,19 @@ const UpdateProfileScreen = () => {
     };
 
     const fetchLgas = async () => {
+        try {
+            const res = await api.get(`/state/${stateId}`);
+            // console.log({ resp: res.data })
+            let lgs = res.data.map((lg: any, index: number) => ({ id: index + 1, state: lg, localGovernmentAreas: [] }))
+            setLgas(lgs);
+
+        } catch (error) {
+            // console.log('Error fetching data LGA Data', error);
+            setLgas([])
+        }
+    };
+
+    const handleUpdateProfile = async () => {
         try {
             const res = await api.get(`/state/${stateId}`);
             // console.log({ resp: res.data })
@@ -156,8 +172,26 @@ const UpdateProfileScreen = () => {
         });
     }, [navigation]);
 
-    const handleUpdateUser = (body: IUser) => {
+    const handleUpdateUser = async (body: IUser) => {
+        try {
+            setLoading(true)
+        const res = await api.post(`/user/update-user?userId=${body?.userId}`);
+        if(res.status==200){
+            setLoading(false)
+            Toast.show({
+                type:'success',
+                text1:'Profile Updated Successfully'
+            })
+        }
       console.log({filledInfo:body})
+            
+        } catch (error:any) {
+            Toast.show({
+                type: 'error',
+                text1: `Error Message: ${error}`
+            });
+            
+        }
     };
 
     return (
@@ -174,6 +208,7 @@ const UpdateProfileScreen = () => {
                 >
                     <Formik
                         initialValues={initialValues || {
+                            userId:'',
                             fullName: '',
                             phoneNumber: '',
                             homeAddress: '',
@@ -220,7 +255,7 @@ const UpdateProfileScreen = () => {
                                         placeholder="Phone number"
                                         onChangeText={handleChange('phoneNumber')}
                                         onBlur={handleBlur('phoneNumber')}
-                                        value={values.phoneNumber}
+                                        value={values.phoneNumber.toString()}
                                         maxLength={11}
                                         keyboardType="numeric"
                                         extraStyle={{ borderColor: touched.phoneNumber && errors.phoneNumber ? 'red' : 'black' }}
@@ -278,7 +313,11 @@ const UpdateProfileScreen = () => {
                                         ? { opacity: 0.8, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53 }
                                         : { opacity: 1, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53 }}
                                 >
-                                    <Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Update</Text>
+                                    {
+                                            loading?<ActivityIndicator size="small" color='#fff' />:
+                                            <Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Update</Text>
+                                        }
+                                           
                                 </Pressable>
                             </Animated.View>
                         )}

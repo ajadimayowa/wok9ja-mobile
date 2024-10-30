@@ -8,11 +8,17 @@ import { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reani
 import { accentColor, blackColor, dangerColor, darkColor, greyColor, lightColor, primaryColor, successColor } from '../../constants/colors';
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import CustomSearchBar from '@/src/components/inputs/search-input';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { IService } from '@/src/interfaces/interface';
 import ServiceCard from '@/src/components/cards/services-card';
 import GigCard from '@/src/components/cards/gig-card';
 import { TitleText } from '@/src/constants/typography';
+import api from '@/src/config/apiConfig';
+import Toast from 'react-native-toast-message';
+import { useAppDispatch, useAppSelector } from '../../store/store';
+import { IUserBio } from '@/src/interfaces/user';
+import { getToken } from '@/src/helpers';
+import LoaderScreen from '@/src/components/screens/LoaderScreen';
 
 const SignupSchema = Yup.object().shape({
     email: Yup.string().email('Invalid email').required('Required'),
@@ -219,7 +225,25 @@ const DashboardScreen = () => {
     const router = useRouter()
     const slideAnim = useRef(new Animated.Value(50)).current; // Start the view off-screen (500 units down)
     const [secure, setSecure] = useState(true);
-    const {fullName} = useLocalSearchParams();
+    const { id,token } = useAppSelector((state)=>state.userslice.userBio);
+    const navigation = useNavigation();
+    const dispatch = useAppDispatch();
+    const userBio = useAppSelector((state) => state.userslice);
+    const [userInfo,setUserInfo] = useState<IUserBio>();
+    const [services,setServices] = useState<IService[]>([]);
+    const [loading, setLoading] = useState(false);
+    // const [userTOken,setUserToken]
+
+    const handleTokenCheck = async () => {
+        const {token} = await getToken();
+        if (!token) {
+            // setUserTok(token)
+            router.replace('./home-unauth');
+        } else {
+            router.replace('./(dashboard)')
+        }
+    }
+
 
     useEffect(() => {
         // Trigger the animation on component mount
@@ -248,10 +272,62 @@ const DashboardScreen = () => {
             params: { gigId: gigId, gigCategory: gigCategory }
         })
     }
+    const fetchServices = async () => {
+        try {
+            // const res = await api.get('/service/all-services');
+            const res = await api.get(`/user/get-user?userId=${id}`);
+            const {token} = await getToken()
+            // const resGigs = await api.get('gig/get-gigs');
+            console.log({ hereIsInfo: res.data?.payload })
+            console.log({ hereIsServ: res.data })
+            if (res.status == 200) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Gotten User'
+                })
+                // setServices(res.data?.payload);
+                setUserInfo(res.data?.payload)
+            }
+        } catch (error) {
+            console.log({ fetchedEr: error })
+        }
+
+    }
+
+    const fetchUserInfo = async () => {
+        try {
+            setLoading(true)
+            // const res = await api.get('/service/all-services');
+            const res = await api.get(`/user/get-user?userId=${id}`);
+            const {token} = await getToken()
+            // const resGigs = await api.get('gig/get-gigs');
+            console.log({ hereIsInfo: res.data?.payload })
+            console.log({ hereIsServ: res.data })
+            if (res.status == 200) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Login successful'
+                })
+                // setServices(res.data?.payload);
+                setUserInfo(res.data?.payload);
+                setLoading(false)
+            }
+        } catch (error) {
+            console.log({ fetchedEr: error });
+            setLoading(false)
+        }
+
+    }
+
+    useEffect(() => {
+        fetchUserInfo()
+    }, [navigation])
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar style="auto" />
-            <ScrollView style={styles.container}>
+            {
+                loading? <LoaderScreen/>:
+                <ScrollView style={styles.container}>
                 <Animated.View
                     style={[styles.container,
                     {
@@ -262,18 +338,19 @@ const DashboardScreen = () => {
 
 
                     <View style={{ minWidth: '100%', marginTop: 10 }}>
-                    {
-                        <TitleText extraStyle={{fontSize:14}} text={`Welcome ${fullName}`}/>
-                    }
-                    <TitleText text='Available services'/>
+                        {
+                            <TitleText extraStyle={{ fontSize: 14 }} text={`Welcome ${userInfo?.profile?.firstName}`} />
+                        }
+                        <TitleText text='Available services' />
                         
+
                     </View>
 
                     <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
                         {
                             availableServices.map((service: IService, index: number) => (
-<TouchableOpacity key={index}>
-                                <ServiceCard index={index} serviceData={service} serviceImageUrl={require('../../assets/images/tailorImage.jpg')} />
+                                <TouchableOpacity key={index}>
+                                    <ServiceCard index={index} serviceData={service} serviceImageUrl={require('../../assets/images/tailorImage.jpg')} />
 
                                 </TouchableOpacity>
                             ))
@@ -285,8 +362,8 @@ const DashboardScreen = () => {
 
 
                     <View style={{ minWidth: '100%', marginTop: 10, flexDirection: 'row', padding: '3%', justifyContent: 'space-between' }}>
-                        
-                        <TitleText text='Recomended gigs'/>
+
+                        <TitleText text='Recomended gigs' />
                         <TouchableOpacity>
                             <Text style={[styles.p, { color: darkColor }]}>View all</Text>
                         </TouchableOpacity>
@@ -295,7 +372,7 @@ const DashboardScreen = () => {
                         {
                             availableGigs.map((gigs: ISellerGig, index: number) => (
                                 <TouchableOpacity key={index}>
-                                <GigCard gigData={gigs} index={index} gigImageUrl={require('../../assets/images/tailorImage.jpg')}/>
+                                    <GigCard gigData={gigs} index={index} gigImageUrl={require('../../assets/images/tailorImage.jpg')} />
                                 </TouchableOpacity>
                             ))
                         }
@@ -420,6 +497,7 @@ const DashboardScreen = () => {
 
                 </Animated.View>
             </ScrollView>
+            }
         </SafeAreaView>
     );
 };

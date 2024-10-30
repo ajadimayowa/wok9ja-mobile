@@ -9,10 +9,12 @@ interface TokenValidationResponse {
 
 
 // Function to get the stored token
-const getToken = async (): Promise<string | null> => {
+const getToken = async (): Promise<any> => {
     try {
         const token = await SecureStore.getItemAsync('userToken');
-        return token;
+        const userInfo = await SecureStore.getItemAsync('userInfo');
+        const userId = await SecureStore.getItemAsync('userId');
+        return {token:token,userId:userId,userInfo:userInfo};
     } catch (error) {
         console.error('Error retrieving the token', error);
         return '';

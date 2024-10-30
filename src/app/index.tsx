@@ -12,7 +12,7 @@ const LandingPage = () => {
     const router = useRouter();
 
     const handleTokenCheck = async () => {
-        const token = await getToken();
+        const {token} = await getToken();
         if (!token) {
             setUserTok(token)
             router.replace('./home-unauth');

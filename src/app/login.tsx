@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, TextInput, View, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, ToastAndroid } from 'react-native';
+import { Button, TextInput, View, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, ToastAndroid, ActivityIndicator } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,8 @@ import Constants from 'expo-constants';
 import LoaderScreen from '../components/screens/LoaderScreen';
 import { BodyText } from '../constants/typography';
 import Toast from 'react-native-toast-message';
+import { setLoggedInUser } from '../store/slices/userSlice';
+import { useAppDispatch } from '../store/store';
 // const apiUrl = Constants.expoConfig?.extra?.apiUrl ?? 'http://localhost:5000/api';
 
 
@@ -32,7 +34,8 @@ const LoginScreen = () => {
     const [secure, setSecure] = useState(true);
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('')
+    const [errorMessage, setErrorMessage] = useState('');
+    const dispatch = useAppDispatch()
 
     const SignupSchema = Yup.object().shape({
         email: Yup.string().email('Invalid email').required('Required'),
@@ -78,28 +81,32 @@ const LoginScreen = () => {
         try {
             // API request to log in
             const res = await api.post('/auth/login', val);
+            console.log({ userDataHere: res.data })
             if (res.status == 200) {
-                Toast.show({
-                    type: 'success',
-                    text1: 'Login successful.',
-                    text2: 'Welcome back!',
-                });
+                // Toast.show({
+                //     type: 'success',
+                //     text1: 'Login successful.',
+                //     text2: 'Welcome back!',
+                // });
+
 
 
                 // Destructure the response data
-                const { token, userInfo } = res.data;
+                const { token, payload } = res.data;
+                dispatch(setLoggedInUser({ ...res.data.payload, token: token }))
 
                 // Log response for debugging
-                // console.log({ token, userInfo, body: val });
+                // console.log({ token, payload, body: val });
 
                 // Save token and user info securely
                 await SecureStore.setItemAsync('userToken', token);
-                await SecureStore.setItemAsync('userInfo', JSON.stringify(userInfo));
+                await SecureStore.setItemAsync('userId', JSON.stringify(payload?.id));
+                await SecureStore.setItemAsync('userInfo', JSON.stringify(payload));
                 setErrorMessage(``)
                 // Navigate to dashboard
                 router.replace({
                     pathname: '/(dashboard)',
-                    params: { fullName: userInfo.fullName ?? '' }
+                    params: { userId: payload?.id, userToken: token }
                 });
             }
 
@@ -107,7 +114,7 @@ const LoginScreen = () => {
             setErrorMessage(`Error Message: ${error}`);
             Toast.show({
                 type: 'error',
-                text1: 'Invalid credentials.'
+                text1: `Error Message: ${error}`
             });
             setLoading(false);
         }
@@ -124,93 +131,94 @@ const LoginScreen = () => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar style="auto" />
-            {
-                loading ? <LoaderScreen /> :
-                    <Animated.View
-                        style={[styles.container,
-                        {
-                            transform: [{ translateY: slideAnim }], // Apply the animated translateY to the view
-                        },
-                        ]}
-                    >
 
-                        <View style={{ minWidth: '100%', marginTop: 10 }}>
-                            <Text style={[styles.headerText, { color: darkColor }]}>Login with your email</Text>
-                        </View>
-                        <Formik
-                            initialValues={{ email: '', password: '' }}
-                            validationSchema={SignupSchema}
-                            onSubmit={(values) => {
-                                // console.log(values);
-                                handleLogin(values)
-                            }}
-                        >
-                            {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-                                <Animated.View style={[styles.container]}>
-                                    <View style={[styles.inputContainer, {}]}>
-                                        <CustomInputField
-                                            placeholder='Email'
-                                            onChangeText={handleChange('email')}
-                                            onBlur={handleBlur('email')}
-                                            // value={values.email}
-                                            extraStyle={{ borderColor: touched.email && errors.email ? 'red' : 'black' }}
-                                            lIcon={'mail-outline'} type={'text'} />
-                                        {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-                                    </View>
+            <Animated.View
+                style={[styles.container,
+                {
+                    transform: [{ translateY: slideAnim }], // Apply the animated translateY to the view
+                },
+                ]}
+            >
 
-
-                                    <View style={[styles.inputContainer, {}]}>
-                                        <CustomInputField
-                                            placeholder='Password'
-                                            onChangeText={handleChange('password')}
-                                            onBlur={handleBlur('password')}
-                                            // value={values.password}
-                                            extraStyle={{ borderColor: touched.password && errors.password ? 'red' : 'black' }}
-                                            rIcon={true} type={'text'} />
-                                        {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-                                        <View style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', flexDirection: 'row' }}>
-                                            <Pressable
-                                                onPress={() => handleNavigateToReset(values.email)}
-                                                style={({ pressed }) => pressed ?
-                                                    { opacity: .8, }
-                                                    :
-                                                    { opacity: 1, }}
-                                            ><Text style={[styles.p]}>Forgot password</Text></Pressable>
-                                        </View>
-                                    </View>
+                <View style={{ minWidth: '100%', marginTop: 10 }}>
+                    <Text style={[styles.headerText, { color: darkColor }]}>Login with your email</Text>
+                </View>
+                <Formik
+                    initialValues={{ email: '', password: '' }}
+                    validationSchema={SignupSchema}
+                    onSubmit={(values) => {
+                        // console.log(values);
+                        handleLogin(values)
+                    }}
+                >
+                    {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                        <Animated.View style={[styles.container]}>
+                            <View style={[styles.inputContainer, {}]}>
+                                <CustomInputField
+                                    placeholder='Email'
+                                    onChangeText={handleChange('email')}
+                                    onBlur={handleBlur('email')}
+                                    // value={values.email}
+                                    extraStyle={{ borderColor: touched.email && errors.email ? 'red' : 'black' }}
+                                    lIcon={'mail-outline'} type={'text'} />
+                                {touched.email && errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+                            </View>
 
 
-                                    <View style={[styles.inputContainer, { gap: 20 }]}>
-
-
-
-
-                                        <View style={{ maxWidth: '100%' }}>
-
-                                        </View>
-                                    </View>
-
-
-
+                            <View style={[styles.inputContainer, {}]}>
+                                <CustomInputField
+                                    placeholder='Password'
+                                    onChangeText={handleChange('password')}
+                                    onBlur={handleBlur('password')}
+                                    // value={values.password}
+                                    extraStyle={{ borderColor: touched.password && errors.password ? 'red' : 'black' }}
+                                    rIcon={true} type={'text'} />
+                                {touched.password && errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+                                <View style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', flexDirection: 'row' }}>
                                     <Pressable
-                                        onPress={() => handleSubmit()}
+                                        onPress={() => handleNavigateToReset(values.email)}
                                         style={({ pressed }) => pressed ?
-                                            { opacity: .8, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53, }
+                                            { opacity: .8, }
                                             :
-                                            { opacity: 1, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53 }}
-                                    ><Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Login</Text>
-                                    </Pressable>
+                                            { opacity: 1, }}
+                                    ><Text style={[styles.p]}>Forgot password</Text></Pressable>
+                                </View>
+                            </View>
 
-                                    <View style={{ width: '100%', alignItems: 'center', display: 'flex' }}>
-                                        <BodyText extraStyle={{ color: 'red', margin: 10 }} text={errorMessage} />
-                                    </View>
-                                </Animated.View>
-                            )}
-                        </Formik>
 
-                    </Animated.View>
+                            <View style={[styles.inputContainer, { gap: 20 }]}>
 
-            }
+
+
+
+                                <View style={{ maxWidth: '100%' }}>
+
+                                </View>
+                            </View>
+
+
+
+                            <Pressable
+                                onPress={() => handleSubmit()}
+                                disabled={loading}
+                                style={({ pressed }) => pressed ?
+                                    { opacity: .8, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53, }
+                                    :
+                                    { opacity: 1, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53 }}
+                            >{
+                                loading?<ActivityIndicator size="small" color='#fff' />:
+                                <Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Login</Text>
+                            }
+                            </Pressable>
+
+                            <View style={{ width: '100%', alignItems: 'center', display: 'flex' }}>
+                                <BodyText extraStyle={{ color: 'red', margin: 10 }} text={errorMessage} />
+                            </View>
+                        </Animated.View>
+                    )}
+                </Formik>
+
+            </Animated.View>
         </SafeAreaView>
 
     );

@@ -1,4 +1,4 @@
-const primaryColor = '#4A90E2'
+const primaryColor = '#125B9A'
 const secondaryColor = '#50E3C2';
 const accentColor = '#FF3939';
 const dangerColor = '#FB1B1B';
