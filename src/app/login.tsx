@@ -199,17 +199,17 @@ const LoginScreen = () => {
 
 
                             <Pressable
-                                onPress={() => handleSubmit()}
-                                disabled={loading}
-                                style={({ pressed }) => pressed ?
-                                    { opacity: .8, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53, }
-                                    :
-                                    { opacity: 1, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53 }}
-                            >{
-                                loading?<ActivityIndicator size="small" color='#fff' />:
-                                <Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Login</Text>
-                            }
-                            </Pressable>
+                                        disabled={loading}
+                                            onPress={() => handleSubmit()}
+                                            style={({ pressed }) => pressed ?
+                                                { opacity: .8, minWidth: 50, alignItems: 'center',justifyContent:'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53, }
+                                                :
+                                                { opacity: 1, minWidth: 50, alignItems: 'center',justifyContent:'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53, maxHeight: 53 }}
+                                        >{
+                                            loading?<ActivityIndicator size="small" color='#fff' />:
+                                            <Text style={[styles.p, { color: '#fff', fontSize: 18 }]}>Login</Text>
+                                        }
+                                            </Pressable>
 
                             <View style={{ width: '100%', alignItems: 'center', display: 'flex' }}>
                                 <BodyText extraStyle={{ color: 'red', margin: 10 }} text={errorMessage} />

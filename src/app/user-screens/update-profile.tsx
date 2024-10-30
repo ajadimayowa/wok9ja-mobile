@@ -16,6 +16,9 @@ import * as SecureStore from 'expo-secure-store'
 import api from '@/src/config/apiConfig';
 import { Picker } from '@react-native-picker/picker';
 import Toast from 'react-native-toast-message';
+import { useAppSelector } from '@/src/store/store';
+import { getToken } from '@/src/helpers';
+import { IUserBio } from '@/src/interfaces/user';
 
 
 
@@ -42,16 +45,41 @@ const UpdateProfileScreen = () => {
     const [secure, setSecure] = useState(true);
     const navigation = useNavigation();
     const [image, setImage] = useState<string | null>(null);
-    const [userInfo, setUserInfo] = useState<IUser | null>(null);
+    const [userInfo,setUserInfo] = useState<IUserBio>();
     const [initialValues, setInitialValues] = useState<IUser | null>(null);
     const [states, setStates] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
     const [lgas, setLgas] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
     const [stateId, setStateId] = useState<number>(1);
     const [loading, setLoading] = useState(false);
+    const { id,token } = useAppSelector((state)=>state.userslice.userBio);
     
 
 
 
+    const fetchUserInfo = async () => {
+        try {
+            setLoading(true)
+            // const res = await api.get('/service/all-services');
+            const res = await api.get(`/user/get-user?userId=${id}`);
+            const {token} = await getToken()
+            // const resGigs = await api.get('gig/get-gigs');
+            // console.log({ hereIsInfo: res.data?.payload })
+            // console.log({ hereIsServ: res.data })
+            if (res.status == 200) {
+                Toast.show({
+                    type: 'success',
+                    text1: 'Login successful'
+                })
+                // setServices(res.data?.payload);
+                setUserInfo(res.data?.payload);
+                setLoading(false)
+            }
+        } catch (error) {
+            console.log({ fetchedEr: error });
+            setLoading(false)
+        }
+
+    }
     const handleImagePick = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -144,7 +172,8 @@ const UpdateProfileScreen = () => {
     }, [slideAnim]);
 
     useEffect(() => {
-        fetchValue('userInfo'); // Fetch user info from SecureStore
+        // fetchValue('userInfo'); // Fetch user info from SecureStore
+        fetchUserInfo()
         fetchStates();
     }, [navigation]);
 
@@ -172,10 +201,10 @@ const UpdateProfileScreen = () => {
         });
     }, [navigation]);
 
-    const handleUpdateUser = async (body: IUser) => {
+    const handleUpdateUser = async (body: any) => {
         try {
             setLoading(true)
-        const res = await api.post(`/user/update-user?userId=${body?.userId}`);
+        const res = await api.post(`/user/update-user?userId=${body?.profile.id}`);
         if(res.status==200){
             setLoading(false)
             Toast.show({
@@ -207,13 +236,13 @@ const UpdateProfileScreen = () => {
                     ]}
                 >
                     <Formik
-                        initialValues={initialValues || {
-                            userId:'',
-                            fullName: '',
-                            phoneNumber: '',
-                            homeAddress: '',
-                            lga: '',
-                            state: ''
+                        initialValues={{
+                            userId:userInfo?.profile.id||'',
+                            fullName: userInfo?.profile.fullName||'',
+                            phoneNumber: userInfo?.contact.phoneNumber||'',
+                            homeAddress: userInfo?.userLocation.homeAddress||'',
+                            lga: userInfo?.userLocation.lga||'',
+                            state: userInfo?.userLocation.state||'',
                         }}
                         validationSchema={SignupSchema}
                         enableReinitialize

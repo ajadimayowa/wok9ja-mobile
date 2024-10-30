@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button, TextInput, View, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, Image, TouchableOpacity } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -9,7 +9,7 @@ import { accentColor, blackColor, dangerColor, darkColor, greyColor, lightColor,
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import CustomSearchBar from '@/src/components/inputs/search-input';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { IService } from '@/src/interfaces/interface';
+import { IService } from '@/src/interfaces/service';
 import ServiceCard from '@/src/components/cards/services-card';
 import GigCard from '@/src/components/cards/gig-card';
 import { TitleText } from '@/src/constants/typography';
@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../../store/store';
 import { IUserBio } from '@/src/interfaces/user';
 import { getToken } from '@/src/helpers';
 import LoaderScreen from '@/src/components/screens/LoaderScreen';
+import { PlaceholderServices } from '@/src/constants/placeholders/constants';
 
 const SignupSchema = Yup.object().shape({
     email: Yup.string().email('Invalid email').required('Required'),
@@ -40,7 +41,6 @@ interface ISellerGig {
 }
 
 
-
 interface ILatestNews {
     id: string,
     titleOfNews: string,
@@ -50,107 +50,7 @@ interface ILatestNews {
     newsId: string,
 }
 
-const availableServices: IService[] = [
-    {
-        id: '1',
-        nameOfService: 'Fashion & Tailoring',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#421300',
-        colorCode2: '#DB6304',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '2',
-        nameOfService: 'Gadget & Electronics',
-        briefDescription: 'Sales of all kinds of electronics and repaire',
-        colorCode: '#254200',
-        colorCode2: '#706203',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '3',
-        nameOfService: 'Programing & Tech',
-        briefDescription: 'All programing related services',
-        colorCode: '#00732E',
-        colorCode2: '#D1F7E6',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '4',
-        nameOfService: 'Photography and Design',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#687200',
-        colorCode2: '#00732E',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '5',
-        nameOfService: 'Article and Writting',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#FF7640',
-        colorCode2: '#D1F8E6',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '6',
-        nameOfService: 'Social Media Marketing',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#687200',
-        colorCode2: '#00732E',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '7',
-        nameOfService: 'Virtual Assistant',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#4D1727',
-        colorCode2: '#BD5272',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '8',
-        nameOfService: 'Interior Decor',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#00732E',
-        colorCode2: '#BD5272',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '9',
-        nameOfService: 'Beauty and Cosmetics',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#687200',
-        colorCode2: '#00732E',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '10',
-        nameOfService: 'Catering Services',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#8F2900',
-        colorCode2: '#CE6C39',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-    {
-        id: '11',
-        nameOfService: 'Logistics',
-        briefDescription: 'All fashion related services and consultations',
-        colorCode: '#687200',
-        colorCode2: '#00732E',
-        serviceIcon: 'machine',
-        iconLibraryIsIonic: true
-    },
-]
+
 
 const latestNewsOnWok9ja: ILatestNews[] = [
     {
@@ -170,7 +70,6 @@ const latestNewsOnWok9ja: ILatestNews[] = [
         newsId: 'sds',
         newsUrl: 'ssss'
     },
-
     {
         id: '3',
         titleOfNews: 'You can now buy credit via vendors',
@@ -193,7 +92,6 @@ const availableGigs: ISellerGig[] = [
         sellerBasePrice: 5000,
         isFavourite: true
     },
-
     {
         id: '2',
         fullNameOfSeller: 'Akintayo Charles',
@@ -205,7 +103,6 @@ const availableGigs: ISellerGig[] = [
         sellerBasePrice: 3600,
         isFavourite: false
     },
-
     {
         id: '3',
         fullNameOfSeller: 'Chima Austine',
@@ -233,6 +130,32 @@ const DashboardScreen = () => {
     const [services,setServices] = useState<IService[]>([]);
     const [loading, setLoading] = useState(false);
     // const [userTOken,setUserToken]
+
+
+    
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            title: `Mayowa Ajadi`, // Custom title
+            headerStyle: {
+                backgroundColor: primaryColor, // Set the background color
+            },
+            headerTintColor: '#fff', // Set the color of the back button and title
+            headerTitleStyle: {
+                fontWeight: 'bold', // Customize title font style
+            },
+            headerRight: ({ size, color }: any) => (
+                <View style={{ paddingHorizontal: 15 }}><TouchableOpacity><Ionicons color={'#fff'} size={24} name={'power'} /></TouchableOpacity></View>
+            ),
+            headerLeft: ({ size, color }: any) => (
+                <View style={{ paddingLeft: 10 }}>
+                    <Image
+                        style={{ height: 40, width: 40, borderRadius: 25 }}
+                        source={require('../../assets/images/tailorImage.jpg')} />
+                </View>
+            )
+        });
+    }, [navigation]);
+
 
     const handleTokenCheck = async () => {
         const {token} = await getToken();
@@ -274,21 +197,22 @@ const DashboardScreen = () => {
     }
     const fetchServices = async () => {
         try {
-            // const res = await api.get('/service/all-services');
-            const res = await api.get(`/user/get-user?userId=${id}`);
+            const res = await api.get('/service/all-services');
             const {token} = await getToken()
             // const resGigs = await api.get('gig/get-gigs');
-            console.log({ hereIsInfo: res.data?.payload })
-            console.log({ hereIsServ: res.data })
+            // console.log({ hereIsInfo: res.data?.payload })
+            // console.log({ hereIsServ: res.data })
             if (res.status == 200) {
-                Toast.show({
-                    type: 'success',
-                    text1: 'Gotten User'
-                })
+                // Toast.show({
+                //     type: 'success',
+                //     text1: 'Gotten Services'
+                // })
                 // setServices(res.data?.payload);
-                setUserInfo(res.data?.payload)
+                setServices(res.data?.payload)
+                // setServices(PlaceholderServices)
             }
         } catch (error) {
+            setServices(PlaceholderServices)
             console.log({ fetchedEr: error })
         }
 
@@ -301,13 +225,13 @@ const DashboardScreen = () => {
             const res = await api.get(`/user/get-user?userId=${id}`);
             const {token} = await getToken()
             // const resGigs = await api.get('gig/get-gigs');
-            console.log({ hereIsInfo: res.data?.payload })
-            console.log({ hereIsServ: res.data })
+            // console.log({ hereIsInfo: res.data?.payload })
+            // console.log({ hereIsServ: res.data })
             if (res.status == 200) {
-                Toast.show({
-                    type: 'success',
-                    text1: 'Login successful'
-                })
+                // Toast.show({
+                //     type: 'success',
+                //     text1: 'Login successful'
+                // })
                 // setServices(res.data?.payload);
                 setUserInfo(res.data?.payload);
                 setLoading(false)
@@ -321,12 +245,15 @@ const DashboardScreen = () => {
 
     useEffect(() => {
         fetchUserInfo()
+        fetchServices()
     }, [navigation])
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar style="auto" />
             {
-                loading? <LoaderScreen/>:
+                loading?<View style={styles.container}>
+<LoaderScreen/>
+                </View > :
                 <ScrollView style={styles.container}>
                 <Animated.View
                     style={[styles.container,
@@ -343,12 +270,11 @@ const DashboardScreen = () => {
                         }
                         <TitleText text='Available services' />
                         
-
                     </View>
 
                     <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
                         {
-                            availableServices.map((service: IService, index: number) => (
+                            services.map((service: IService, index: number) => (
                                 <TouchableOpacity key={index}>
                                     <ServiceCard index={index} serviceData={service} serviceImageUrl={require('../../assets/images/tailorImage.jpg')} />
 

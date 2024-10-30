@@ -1,13 +1,11 @@
-export interface IService {
+export interface IService{
     id:string,
     nameOfService: string,
     briefDescription: string,
     colorCode: string,
     colorCode2: string,
     serviceIcon: string,
-    iconLibraryIsIonic: boolean
-
-    
+    iconLibraryIsIonic: boolean,
     webIcon? :string,
     createdBy?:string,
     category? :string
