@@ -14,3 +14,30 @@ export interface IService {
     basic?:boolean
     dateTime? :Date
 }
+
+export interface IGig {
+    _id:string,
+    id: string,
+    fullNameOfSeller: string,
+    currentLevel: number,
+    gigDescription: string,
+    sellerCurrentRating: number,
+    sellerTotalBuyers: number,
+    sellerBasePrice: number,
+    isFavourite: boolean,
+    gigCategoryId: string
+}
+
+export interface INews {
+    id: string,
+    titleOfNews: string,
+    newsDescription: string,
+    newsCoverImageUrl: string,
+    newsUrl: string,
+    newsId: string,
+}
+
+export interface IKyc {
+    idType: string;
+    idNumber: string,
+}

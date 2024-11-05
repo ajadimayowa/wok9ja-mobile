@@ -52,6 +52,7 @@ const UpdateProfileScreen = () => {
     const [stateId, setStateId] = useState<number>(1);
     const [loading, setLoading] = useState(false);
     const { id,token } = useAppSelector((state)=>state.userslice.userBio);
+    const [showLgas,setShowLgas] = useState(false)
     
 
 
@@ -68,11 +69,12 @@ const UpdateProfileScreen = () => {
             if (res.status == 200) {
                 Toast.show({
                     type: 'success',
-                    text1: 'Login successful'
+                    text1: 'FetchedInfooo'
                 })
                 // setServices(res.data?.payload);
                 setUserInfo(res.data?.payload);
-                setLoading(false)
+                setLoading(false);
+                setStateId(res.data?.payload?.userLocation?.stateId)
             }
         } catch (error) {
             console.log({ fetchedEr: error });
@@ -98,26 +100,16 @@ const UpdateProfileScreen = () => {
         }
     };
 
-    const fetchValue = async (key: string) => {
-        try {
-            const result = await SecureStore.getItemAsync(key);
-            if (result) {
-                const parsedResult: IUser = JSON.parse(result); // Parse the stored JSON string
-                // console.log({ inStore: parsedResult })
-                setInitialValues({ ...parsedResult}); // Set as initial values for Formik
-                // console.log('Data retrieved:', parsedResult);
-            } else {
-                // console.log('No data found for key:', key);
-            }
-        } catch (error) {
-            // console.log('Error fetching data', error);
-        }
-    };
-
     const fetchStates = async () => {
         try {
             const res = await api.get('/states');
             setStates(res.data)
+            if(res.status==200){
+                Toast.show({
+                    type: 'success',
+                    text1: `Fetched!`
+                });
+            }
 
         } catch (error) {
             // console.log('Error fetching data', error);
@@ -127,9 +119,13 @@ const UpdateProfileScreen = () => {
 
     const fetchLgas = async () => {
         try {
-            const res = await api.get(`/state/${stateId}`);
+            const res = await api.get(`/lga/${stateId}`);
             // console.log({ resp: res.data })
             let lgs = res.data.map((lg: any, index: number) => ({ id: index + 1, state: lg, localGovernmentAreas: [] }))
+            Toast.show({
+                type: 'success',
+                text1: `Fetched Lgs!`
+            });
             setLgas(lgs);
 
         } catch (error) {
@@ -202,24 +198,38 @@ const UpdateProfileScreen = () => {
     }, [navigation]);
 
     const handleUpdateUser = async (body: any) => {
+        console.log({seeUpdated:body})
         try {
             setLoading(true)
-        const res = await api.post(`/user/update-user?userId=${body?.profile.id}`);
+            const payload = {
+                ...body,
+                stateId:stateId
+            }
+        const res = await api.patch(`/user/update-profile?userId=${body?.userId}`,payload);
         if(res.status==200){
             setLoading(false)
             Toast.show({
                 type:'success',
                 text1:'Profile Updated Successfully'
             })
+            router.back()
         }
-      console.log({filledInfo:body})
             
         } catch (error:any) {
             Toast.show({
                 type: 'error',
                 text1: `Error Message: ${error}`
             });
-            
+            setLoading(false) 
+            console.log(`Error Message: ${error}`)
+        }
+    };
+
+    const handleStateSelect = (e: { id?: string; state?: string }, setFieldValue: Function) => {
+        if (e.id) {
+            setStateId(+e.id); 
+            setFieldValue('state', e.state || '');
+            setFieldValue('lga', '');
         }
     };
 
@@ -310,33 +320,34 @@ const UpdateProfileScreen = () => {
                                     type={'select'}
                                     data={states}
                                         placeholder="Select"
-                                        onChangeText={(e: any) => { setStateId(e.id); setFieldValue('state', e.state) }}
+                                        onChangeText={(e: any) => handleStateSelect(e, setFieldValue)}
                                         onBlur={()=>handleBlur('state')}
                                         value={values.state}
                                         extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
                                         lIcon={'bus-outline'} />
-                                    
                                     {touched.state && errors.state ? <Text style={styles.errorText}>{errors.state}</Text> : null}
                                 </View>
 
-                                <View style={[styles.inputContainer, {borderRadius:10}]}>
+                                    <View style={[styles.inputContainer, {borderRadius:10}]}>
                                     <BodyText text={'LGA'} />
                                     <CustomInputField
+                                    disabled={true}
                                     type={'select'}
                                     data={lgas}
                                         placeholder="Select"
                                         onChangeText={(e: any) => {setFieldValue('lga', e.state) }}
                                         onBlur={()=>handleBlur('lga')}
                                         value={values.lga}
-                                        extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
+                                        extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.lga && errors.lga ? 'red' : 'black' }}
                                         lIcon={'bicycle-outline'} />
-                                    
-                                    {touched.state && errors.state ? <Text style={styles.errorText}>{errors.state}</Text> : null}
+                                    {touched.lga && errors.lga ? <Text style={styles.errorText}>{errors.lga}</Text> : null}
                                 </View>
+                                
 
 
 
                                 <Pressable
+                                disabled={loading}
                                     onPress={() => handleSubmit()}
                                     style={({ pressed }) => pressed
                                         ? { opacity: 0.8, minWidth: 50, alignItems: 'center', borderRadius: 7, backgroundColor: blackColor, padding: '3%', minHeight: 53 }

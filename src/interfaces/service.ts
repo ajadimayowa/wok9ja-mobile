@@ -1,4 +1,5 @@
 export interface IService{
+    _id:string,
     id:string,
     nameOfService: string,
     briefDescription: string,

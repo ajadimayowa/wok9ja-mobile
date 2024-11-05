@@ -1,207 +1,136 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, TextInput, View, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, Image, TouchableOpacity } from 'react-native';
+import { Button, TextInput, View, Image, Text, SafeAreaView, ScrollView, Pressable, Animated, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { StatusBar } from 'expo-status-bar';
 import { ScaledSheet } from 'react-native-size-matters';
 import { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { accentColor, blackColor, dangerColor, darkColor, greyColor, lightColor, primaryColor, successColor } from '../../constants/colors';
-import { FontAwesome6, Ionicons } from '@expo/vector-icons';
+import { accentColor, blackColor, dangerColor, darkColor, greyColor, lightColor, primaryColor, successColor } from '../../constants/colors'
+import { FontAwesome6, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import CustomSearchBar from '@/src/components/inputs/search-input';
+import { CustomInputField } from '@/src/components/inputs/inputField';
+import { BodyText, CaptionText, TitleText } from '@/src/constants/typography';
+import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store'
+import api from '@/src/config/apiConfig';
+import { Picker } from '@react-native-picker/picker';
+import LoaderScreen from '@/src/components/screens/LoaderScreen';
+
+
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { IService } from '@/src/interfaces/service';
 import ServiceCard from '@/src/components/cards/services-card';
 import GigCard from '@/src/components/cards/gig-card';
-import { TitleText } from '@/src/constants/typography';
-import api from '@/src/config/apiConfig';
 import Toast from 'react-native-toast-message';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { IUserBio } from '@/src/interfaces/user';
 import { getToken } from '@/src/helpers';
-import LoaderScreen from '@/src/components/screens/LoaderScreen';
-import { PlaceholderServices } from '@/src/constants/placeholders/constants';
-
-const SignupSchema = Yup.object().shape({
-    email: Yup.string().email('Invalid email').required('Required'),
-    password: Yup.string().min(6, 'Too short!').required('Required'),
-});
+import { latestNewsOnWok9ja, PlaceholderGigs, PlaceholderServices } from '@/src/constants/placeholders/constants';
+import { IGig, INews } from '@/src/interfaces/interface';
 
 
 
-interface ISellerGig {
-    id: string,
-    fullNameOfSeller: string,
-    currentLevel: number,
-    gigDescription: string,
-    sellerCurrentRating: number,
-    sellerTotalBuyers: number,
-    sellerBasePrice: number,
-    isFavourite: boolean,
-    gigCategoryId: string
+
+interface IUser {
+    fullName: string;
+    phoneNumber: string,
+    homeAddress: string,
+    state: string,
+    lga: string,
 }
 
-
-interface ILatestNews {
-    id: string,
-    titleOfNews: string,
-    newsDescription: string,
-    newsCoverImageUrl: string,
-    newsUrl: string,
-    newsId: string,
+interface IStates {
+    id: string;
+    state: string;
+    localGovernmentAreas: string;
 }
 
-
-
-const latestNewsOnWok9ja: ILatestNews[] = [
+const verificationIdType = [
     {
         id: '1',
-        titleOfNews: 'Location filtering is now available',
-        newsDescription: 'All fashion related services and consultations',
-        newsCoverImageUrl: 'sdsd',
-        newsId: 'sds',
-        newsUrl: 'ssss'
-    },
+        state: 'Voters Card',
+        localGovernmentAreas: ''
 
-    {
-        id: '2',
-        titleOfNews: 'New face to kyc',
-        newsDescription: 'All fashion related services and consultations',
-        newsCoverImageUrl: 'sdsd',
-        newsId: 'sds',
-        newsUrl: 'ssss'
-    },
-    {
-        id: '3',
-        titleOfNews: 'You can now buy credit via vendors',
-        newsDescription: 'All fashion related services and consultations',
-        newsCoverImageUrl: 'sdsd',
-        newsId: 'sds',
-        newsUrl: 'ssss'
-    },
-]
-
-const availableGigs: ISellerGig[] = [
-    {
-        id: '1',
-        fullNameOfSeller: 'Odeleye Olive',
-        currentLevel: 4,
-        gigDescription: 'Sew modern and stylish women clothing for all occasions',
-        gigCategoryId: 'Fashion & Tailoring',
-        sellerCurrentRating: 4.3,
-        sellerTotalBuyers: 40,
-        sellerBasePrice: 5000,
-        isFavourite: true
     },
     {
         id: '2',
-        fullNameOfSeller: 'Akintayo Charles',
-        currentLevel: 3,
-        gigCategoryId: 'Photography and Design',
-        gigDescription: 'Do all your graphics design jobs',
-        sellerCurrentRating: 3.7,
-        sellerTotalBuyers: 25,
-        sellerBasePrice: 3600,
-        isFavourite: false
+        state: 'NIN',
+        localGovernmentAreas: ''
+
     },
     {
         id: '3',
-        fullNameOfSeller: 'Chima Austine',
-        currentLevel: 1,
-        gigCategoryId: 'Programing & Tech',
-        gigDescription: 'Build business landing pages with wordpress',
-        sellerCurrentRating: 3.3,
-        sellerTotalBuyers: 45,
-        sellerBasePrice: 70000,
-        isFavourite: true
-    },
-]
+        state: 'International Passport',
+        localGovernmentAreas: ''
 
+    }
+]
 
 const DashboardScreen = () => {
     const scale = useSharedValue(1);
-    const router = useRouter()
+    const router = useRouter();
     const slideAnim = useRef(new Animated.Value(50)).current; // Start the view off-screen (500 units down)
     const [secure, setSecure] = useState(true);
-    const { id,token } = useAppSelector((state)=>state.userslice.userBio);
     const navigation = useNavigation();
+    const [image, setImage] = useState<string | null>(null);
+    const [initialValues, setInitialValues] = useState<IUser | null>(null);
+    const [states, setStates] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
+    const [lgas, setLgas] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
+    const [stateId, setStateId] = useState<number>(1);
+
+
+
+    const { id, token } = useAppSelector((state) => state.userslice.userBio);
+
     const dispatch = useAppDispatch();
     const userBio = useAppSelector((state) => state.userslice);
-    const [userInfo,setUserInfo] = useState<IUserBio>();
-    const [services,setServices] = useState<IService[]>([]);
-    const [loading, setLoading] = useState(false);
-    // const [userTOken,setUserToken]
+    const [userInfo, setUserInfo] = useState<IUserBio>();
+    const [services, setServices] = useState<IService[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
 
 
-    
+
+
     useLayoutEffect(() => {
         navigation.setOptions({
-            title: `Mayowa Ajadi`, // Custom title
+            title: `Messaging`,
             headerStyle: {
-                backgroundColor: primaryColor, // Set the background color
+                backgroundColor: primaryColor,
             },
-            headerTintColor: '#fff', // Set the color of the back button and title
+            headerTintColor: '#fff',
             headerTitleStyle: {
-                fontWeight: 'bold', // Customize title font style
+                fontWeight: 'bold',
             },
-            headerRight: ({ size, color }: any) => (
-                <View style={{ paddingHorizontal: 15 }}><TouchableOpacity><Ionicons color={'#fff'} size={24} name={'power'} /></TouchableOpacity></View>
-            ),
-            headerLeft: ({ size, color }: any) => (
-                <View style={{ paddingLeft: 10 }}>
-                    <Image
-                        style={{ height: 40, width: 40, borderRadius: 25 }}
-                        source={require('../../assets/images/tailorImage.jpg')} />
+            headerRight: () => (
+                <View>
+                    <TouchableOpacity>
+                        <Ionicons color={'#fff'} size={24} name={'person-outline'} />
+                    </TouchableOpacity>
                 </View>
-            )
+            ),
         });
     }, [navigation]);
 
-
-    const handleTokenCheck = async () => {
-        const {token} = await getToken();
-        if (!token) {
-            // setUserTok(token)
-            router.replace('./home-unauth');
-        } else {
-            router.replace('./(dashboard)')
-        }
-    }
-
-
     useEffect(() => {
-        // Trigger the animation on component mount
         Animated.timing(slideAnim, {
-            toValue: 0, // Move it to its final position (0 units down)
-            duration: 500, // Animation duration
-            useNativeDriver: true, // Improves performance by using the native animation driver
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
         }).start();
     }, [slideAnim]);
+
 
 
     const handleNavigateToLogin = () => {
         router.back()
     }
 
-    const handleNavigateToServiceViewScreen = (serviceId: string, serviceName: string) => {
-        router.push({
-            pathname: `../service/[serviceId]`,
-            params: { serviceId: serviceId, serviceName: serviceName }
-        })
-    }
-
-    const handleNavigateToGigViewScreen = (gigId: string, gigCategory: string) => {
-        router.push({
-            pathname: `../gig/[gigId]`,
-            params: { gigId: gigId, gigCategory: gigCategory }
-        })
-    }
+    
     const fetchServices = async () => {
         try {
             const res = await api.get('/service/all-services');
-            const {token} = await getToken()
-            // const resGigs = await api.get('gig/get-gigs');
-            // console.log({ hereIsInfo: res.data?.payload })
-            // console.log({ hereIsServ: res.data })
+            const { token } = await getToken()
+            
             if (res.status == 200) {
                 // Toast.show({
                 //     type: 'success',
@@ -213,20 +142,20 @@ const DashboardScreen = () => {
             }
         } catch (error) {
             setServices(PlaceholderServices)
-            console.log({ fetchedEr: error })
+            // console.log({ fetchedEr: error })
         }
 
     }
 
     const fetchUserInfo = async () => {
         try {
+            const userId = await SecureStore.getItemAsync('userId');
+            console.log({hereIsID:userId})
             setLoading(true)
             // const res = await api.get('/service/all-services');
-            const res = await api.get(`/user/get-user?userId=${id}`);
-            const {token} = await getToken()
-            // const resGigs = await api.get('gig/get-gigs');
-            // console.log({ hereIsInfo: res.data?.payload })
-            // console.log({ hereIsServ: res.data })
+            const res = await api.get(`/user/get-user?userId=${userId}`);
+            const { token } = await getToken()
+           
             if (res.status == 200) {
                 // Toast.show({
                 //     type: 'success',
@@ -237,7 +166,7 @@ const DashboardScreen = () => {
                 setLoading(false)
             }
         } catch (error) {
-            console.log({ fetchedEr: error });
+            // console.log({ fetchedEr: error });
             setLoading(false)
         }
 
@@ -247,200 +176,203 @@ const DashboardScreen = () => {
         fetchUserInfo()
         fetchServices()
     }, [navigation])
+
+    const handleNavigateToServiceViewScreen = (service: IService) => {
+        // console.log({ serviceInf: service })
+        router.push({
+            pathname: `../service/[serviceId]`,
+            params: { serviceId: service._id, serviceName: service.nameOfService }
+        })
+    }
+
+    const handleNavigateToGigViewScreen = (gig:IGig) => {
+        router.push({
+            pathname: `../gig/[gigId]`,
+            params: { gigId: gig?._id, gigCategory: gig?.gigCategoryId }
+        })
+    }
+
+
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar style="auto" />
             {
-                loading?<View style={styles.container}>
-<LoaderScreen/>
-                </View > :
-                <ScrollView style={styles.container}>
-                <Animated.View
-                    style={[styles.container,
-                    {
-                        transform: [{ translateY: slideAnim }], // Apply the animated translateY to the view
-                    },
-                    ]}
-                >
-
-
-                    <View style={{ minWidth: '100%', marginTop: 10 }}>
+                loading?<LoaderScreen />:
+            
+                (<ScrollView style={styles.container}>
+                    <Animated.View
+                        style={[styles.container,
                         {
-                            <TitleText extraStyle={{ fontSize: 14 }} text={`Welcome ${userInfo?.profile?.firstName}`} />
-                        }
-                        <TitleText text='Available services' />
-                        
-                    </View>
-
-                    <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
-                        {
-                            services.map((service: IService, index: number) => (
-                                <TouchableOpacity key={index}>
-                                    <ServiceCard index={index} serviceData={service} serviceImageUrl={require('../../assets/images/tailorImage.jpg')} />
-
-                                </TouchableOpacity>
-                            ))
-                        }
-                    </ScrollView>
+                            transform: [{ translateY: slideAnim }], // Apply the animated translateY to the view
+                        },
+                        ]}
+                    >
 
 
+                        <View style={{ minWidth: '100%'}}>
+                            {
+                                <TitleText extraStyle={{ fontSize: 14 }} text={`Welcome ${userInfo?.profile?.firstName}`} />
+                            }
+                            <TitleText text='Available services' />
 
-
-
-                    <View style={{ minWidth: '100%', marginTop: 10, flexDirection: 'row', padding: '3%', justifyContent: 'space-between' }}>
-
-                        <TitleText text='Recomended gigs' />
-                        <TouchableOpacity>
-                            <Text style={[styles.p, { color: darkColor }]}>View all</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={{ flex: 1, padding: '2%', minWidth: '100%' }} contentContainerStyle={{ gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
-                        {
-                            availableGigs.map((gigs: ISellerGig, index: number) => (
-                                <TouchableOpacity key={index}>
-                                    <GigCard gigData={gigs} index={index} gigImageUrl={require('../../assets/images/tailorImage.jpg')} />
-                                </TouchableOpacity>
-                            ))
-                        }
-                    </ScrollView>
-                    <View style={{ width: '100%', marginTop: 10 }}>
-                        <View style={styles.infomationCard}>
-                            <Text style={[styles.headerText, { padding: 0, justifyContent: 'flex-start' }]}>Invite your friends and get rewards</Text>
-                            <Text style={[styles.p, { color: '#fff' }]}>Because we are just starting out, invite your friends to sell on wok9ja and get perks and rewards!</Text>
-
-                            <View style={{ width: '100%', paddingHorizontal: '1%', flexDirection: 'row' }}>
-                                <TouchableOpacity style={{ width: '100%', alignItems: 'center', gap: 5, paddingHorizontal: '3%', flexDirection: 'row' }}>
-                                    <Text style={[styles.p, { color: accentColor, alignItems: 'center' }]}>Invite</Text>
-                                    <Ionicons name="arrow-forward" color={accentColor} />
-                                </TouchableOpacity>
-                            </View>
                         </View>
 
-                    </View>
+                        <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
+                            {
+                                services.map((service: IService, index: number) => (
+                                    <TouchableOpacity onPress={() => handleNavigateToServiceViewScreen(service)} key={index}>
+                                        <ServiceCard index={index} serviceData={service} serviceImageUrl={require('../../assets/images/tailorImage.jpg')} />
 
-                    <View style={{ minWidth: '100%', marginTop: 10, flexDirection: 'row', padding: '3%', justifyContent: 'space-between' }}>
-                        <Text style={[styles.headerText, { color: darkColor }]}>Rising talents on wok9ja</Text>
-                        <TouchableOpacity>
-                            <Text style={[styles.p, { color: darkColor }]}>View all</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={{ flex: 1, padding: '2%', minWidth: '100%' }} contentContainerStyle={{ gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
-                        {
-                            availableGigs.map((gigs: ISellerGig, index: number) => (
-                                <View style={styles.boxMedium} key={index}>
-                                    <View style={{
-                                        width: '100%',
-                                        justifyContent: 'center',
-                                        borderTopStartRadius: 10,
-                                        borderTopEndRadius: 10, backgroundColor: 'purple', alignItems: 'center',
-                                        maxHeight: '50%',
+                                    </TouchableOpacity>
+                                ))
+                            }
+                        </ScrollView>
 
-                                    }}>
-                                        {/* <Ionicons name='shirt' size={50} /> */}
-                                        {/* <Image
+
+
+
+
+                        <View style={{ minWidth: '100%', marginTop: 10, flexDirection: 'row', padding: '3%', justifyContent: 'space-between' }}>
+
+                            <TitleText text='Recomended gigs' />
+                            <TouchableOpacity>
+                                <Text style={[styles.p, { color: darkColor }]}>View all</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{ flex: 1, padding: '2%', minWidth: '100%' }} contentContainerStyle={{ gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
+                            {
+                                PlaceholderGigs.map((gig: IGig, index: number) => (
+                                    <TouchableOpacity onPress={()=>handleNavigateToGigViewScreen(gig)} key={index}>
+                                        <GigCard gigData={gig} index={index} gigImageUrl={require('../../assets/images/tailorImage.jpg')} />
+                                    </TouchableOpacity>
+                                ))
+                            }
+                        </ScrollView>
+                        <View style={{ width: '100%', marginTop: 10 }}>
+                            <View style={styles.infomationCard}>
+                                <Text style={[styles.headerText, { padding: 0, justifyContent: 'flex-start' }]}>Invite your friends and get rewards</Text>
+                                <Text style={[styles.p, { color: '#fff' }]}>Because we are just starting out, invite your friends to sell on wok9ja and get perks and rewards!</Text>
+
+                                <View style={{ width: '100%', paddingHorizontal: '1%', flexDirection: 'row' }}>
+                                    <TouchableOpacity style={{ width: '100%', alignItems: 'center', gap: 5, paddingHorizontal: '3%', flexDirection: 'row' }}>
+                                        <Text style={[styles.p, { color: accentColor, alignItems: 'center' }]}>Invite</Text>
+                                        <Ionicons name="arrow-forward" color={accentColor} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                        </View>
+
+                        <View style={{ minWidth: '100%', marginTop: 10, flexDirection: 'row', padding: '3%', justifyContent: 'space-between' }}>
+                            <Text style={[styles.headerText, { color: darkColor }]}>Rising talents on wok9ja</Text>
+                            <TouchableOpacity>
+                                <Text style={[styles.p, { color: darkColor }]}>View all</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{ flex: 1, padding: '2%', minWidth: '100%' }} contentContainerStyle={{ gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
+                            {
+                                PlaceholderGigs.map((gigs: IGig, index: number) => (
+                                    <View style={styles.boxMedium} key={index}>
+                                        <View style={{
+                                            width: '100%',
+                                            justifyContent: 'center',
+                                            borderTopStartRadius: 10,
+                                            borderTopEndRadius: 10, backgroundColor: 'purple', alignItems: 'center',
+                                            maxHeight: '50%',
+
+                                        }}>
+                                            {/* <Ionicons name='shirt' size={50} /> */}
+                                            {/* <Image
                                     source={{ uri: 'https://www.ronkita.biz/app_master/images/services/learn-to-sew/learn-to-sew_980x510.jpg' }} // Remote image URL
                                     style={{}}
                                     resizeMode="cover" // Adjusts how the image fits in the space (optional)
                                 /> */}
 
-                                        <Image
-                                            source={require('../../assets/images/tailorImage.jpg')} // Remote image URL
-                                            // source={{ uri: 'https://www.ronkita.biz/app_master/images/services/learn-to-sew/learn-to-sew_980x510.jpg' }} // Remote image URL
-                                            style={{ height: '100%', maxWidth: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
-                                        // resizeMode="contain" // Adjusts how the image fits in the space (optional)
-                                        />
-                                    </View>
-
-                                    <View
-                                        style={{
-                                            width: '100%',
-                                            justifyContent: 'flex-start',
-                                            // padding:'2%',
-                                            borderBottomStartRadius: 5,
-                                            borderBottomEndRadius: 5, backgroundColor: '#fff', alignItems: 'center',
-                                            minHeight: '50%',
-                                        }}>
-                                        <View style={{ padding: '2%', flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
-                                            <View style={{ flexDirection: 'row', gap: 5 }}>
-                                                <View >
-                                                    <Image
-                                                        style={{ height: 40, width: 40, borderRadius: 25 }}
-                                                        source={require('../../assets/images/tailorImage.jpg')} /></View>
-                                                <View>
-                                                    <Text style={[styles.p, { color: '#000', fontSize: 12 }]}>{gigs.fullNameOfSeller}</Text>
-                                                    <Text>{`Level ${gigs.currentLevel}`}</Text>
-                                                </View>
-                                            </View>
-                                            <View><TouchableOpacity><Ionicons color={gigs.isFavourite ? 'red' : greyColor} size={24} name={gigs.isFavourite ? 'heart' : 'heart-outline'} /></TouchableOpacity></View>
+                                            <Image
+                                                source={require('../../assets/images/tailorImage.jpg')} // Remote image URL
+                                                // source={{ uri: 'https://www.ronkita.biz/app_master/images/services/learn-to-sew/learn-to-sew_980x510.jpg' }} // Remote image URL
+                                                style={{ height: '100%', maxWidth: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
+                                            // resizeMode="contain" // Adjusts how the image fits in the space (optional)
+                                            />
                                         </View>
 
-                                        <View style={{ padding: '2%', flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
-                                            <Text style={[styles.p, { fontSize: 14 }]}>{gigs.gigDescription}</Text>
-
-                                        </View>
-
-                                        <View style={{ padding: '2%', paddingVertical: 5, flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
-                                            <View style={{ flexDirection: 'row', gap: 5 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                                                    <Text>Rating : </Text>
-                                                    <Ionicons size={12} name='star' />
-                                                    <Text>{gigs.sellerCurrentRating}</Text>
+                                        <View
+                                            style={{
+                                                width: '100%',
+                                                justifyContent: 'flex-start',
+                                                // padding:'2%',
+                                                borderBottomStartRadius: 5,
+                                                borderBottomEndRadius: 5, backgroundColor: '#fff', alignItems: 'center',
+                                                minHeight: '50%',
+                                            }}>
+                                            <View style={{ padding: '2%', flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
+                                                <View style={{ flexDirection: 'row', gap: 5 }}>
+                                                    <View >
+                                                        <Image
+                                                            style={{ height: 40, width: 40, borderRadius: 25 }}
+                                                            source={require('../../assets/images/tailorImage.jpg')} /></View>
+                                                    <View>
+                                                        <Text style={[styles.p, { color: '#000', fontSize: 12 }]}>{gigs.fullNameOfSeller}</Text>
+                                                        <Text>{`Level ${gigs.currentLevel}`}</Text>
+                                                    </View>
                                                 </View>
+                                                <View><TouchableOpacity><Ionicons color={gigs.isFavourite ? 'red' : greyColor} size={24} name={gigs.isFavourite ? 'heart' : 'heart-outline'} /></TouchableOpacity></View>
                                             </View>
 
+                                            <View style={{ padding: '2%', flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
+                                                <Text style={[styles.p, { fontSize: 14 }]}>{gigs.gigDescription}</Text>
+
+                                            </View>
+
+                                            <View style={{ padding: '2%', paddingVertical: 5, flexDirection: 'row', width: '100%', justifyContent: 'space-between' }}>
+                                                <View style={{ flexDirection: 'row', gap: 5 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                                        <Text>Rating : </Text>
+                                                        <Ionicons size={12} name='star' />
+                                                        <Text>{gigs.sellerCurrentRating}</Text>
+                                                    </View>
+                                                </View>
+
+                                            </View>
                                         </View>
+
                                     </View>
+                                ))
+                            }
+                        </ScrollView>
 
-                                </View>
-                            ))
-                        }
-                    </ScrollView>
+                        <View style={{ minWidth: '100%', marginTop: 10 }}>
+                            <Text style={[styles.headerText, { color: darkColor }]}>Latest on wok9ja</Text>
+                        </View>
 
-                    <View style={{ minWidth: '100%', marginTop: 10 }}>
-                        <Text style={[styles.headerText, { color: darkColor }]}>Latest on wok9ja</Text>
-                    </View>
+                        <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
+                            {
+                                latestNewsOnWok9ja.map((news: INews, index: number) => (
+                                    <View key={index} style={styles.box}>
+                                        <View style={{ width: '100%', justifyContent: 'center', borderTopStartRadius: 5, borderTopEndRadius: 5, backgroundColor: primaryColor, alignItems: 'center', padding: '5%', height: '75%' }}>
+                                            <Image
+                                                source={require('../../assets/images/tailorImage.jpg')} // Remote image URL
+                                                // source={{ uri: 'https://www.ronkita.biz/app_master/images/services/learn-to-sew/learn-to-sew_980x510.jpg' }} // Remote image URL
+                                                style={{ height: '100%', maxWidth: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
+                                            // resizeMode="contain" // Adjusts how the image fits in the space (optional)
+                                            />
+                                        </View>
 
-                    <ScrollView contentContainerStyle={{ padding: '2%', gap: 10 }} horizontal={true} showsHorizontalScrollIndicator={false}>
-                        {
-                            latestNewsOnWok9ja.map((news: ILatestNews, index: number) => (
-                                <View key={index} style={styles.box}>
-                                    <View style={{ width: '100%', justifyContent: 'center', borderTopStartRadius: 5, borderTopEndRadius: 5, backgroundColor: primaryColor, alignItems: 'center', padding: '5%', height: '75%' }}>
-                                        <Image
-                                            source={require('../../assets/images/tailorImage.jpg')} // Remote image URL
-                                            // source={{ uri: 'https://www.ronkita.biz/app_master/images/services/learn-to-sew/learn-to-sew_980x510.jpg' }} // Remote image URL
-                                            style={{ height: '100%', maxWidth: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
-                                        // resizeMode="contain" // Adjusts how the image fits in the space (optional)
-                                        />
+                                        <Text style={{ fontFamily: 'primaryFont' }}>{news.titleOfNews}</Text>
+
                                     </View>
+                                ))
+                            }
 
-                                    <Text style={{ fontFamily: 'primaryFont' }}>{news.titleOfNews}</Text>
+                        </ScrollView>
 
-                                </View>
-                            ))
-                        }
-
-                    </ScrollView>
-
-                </Animated.View>
-            </ScrollView>
+                    </Animated.View>
+                </ScrollView>)
             }
+
         </SafeAreaView>
     );
-};
-
-
-DashboardScreen.options = {
-    headerTitle: () => (
-        <View
-        //   style={styles.headerContainer}
-        >
-            <Text style={styles.headerText}>Centered Header</Text>
-        </View>
-    ),
-    headerStyle: {
-        backgroundColor: '#6200ee', // Customize background color of the header
-    },
-    headerTitleAlign: 'center', // Ensure the custom title view is centered
 };
 
 const styles = ScaledSheet.create({

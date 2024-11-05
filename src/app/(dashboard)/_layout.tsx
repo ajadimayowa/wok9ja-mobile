@@ -36,7 +36,7 @@ const DashboardLayout = () => {
                 tabBarIcon: ({ color, size }) => (<Ionicons name="mail-outline" color={color} size={24} />)
             }} />
 
-            <Tabs.Screen name="search" options={{
+            <Tabs.Screen name="create" options={{
                 tabBarIcon: ({ color, size }) => (<Ionicons name="add-circle-outline" color={primaryColor} size={40} />)
             }} />
             <Tabs.Screen name="orders" options={{

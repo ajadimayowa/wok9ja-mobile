@@ -83,24 +83,16 @@ const LoginScreen = () => {
             const res = await api.post('/auth/login', val);
             console.log({ userDataHere: res.data })
             if (res.status == 200) {
-                // Toast.show({
-                //     type: 'success',
-                //     text1: 'Login successful.',
-                //     text2: 'Welcome back!',
-                // });
-
-
-
                 // Destructure the response data
                 const { token, payload } = res.data;
                 dispatch(setLoggedInUser({ ...res.data.payload, token: token }))
 
                 // Log response for debugging
-                // console.log({ token, payload, body: val });
+                console.log({ token, payload});
 
                 // Save token and user info securely
                 await SecureStore.setItemAsync('userToken', token);
-                await SecureStore.setItemAsync('userId', JSON.stringify(payload?.id));
+                await SecureStore.setItemAsync('userId', payload?.id);
                 await SecureStore.setItemAsync('userInfo', JSON.stringify(payload));
                 setErrorMessage(``)
                 // Navigate to dashboard
@@ -184,20 +176,6 @@ const LoginScreen = () => {
                                     ><Text style={[styles.p]}>Forgot password</Text></Pressable>
                                 </View>
                             </View>
-
-
-                            <View style={[styles.inputContainer, { gap: 20 }]}>
-
-
-
-
-                                <View style={{ maxWidth: '100%' }}>
-
-                                </View>
-                            </View>
-
-
-
                             <Pressable
                                         disabled={loading}
                                             onPress={() => handleSubmit()}

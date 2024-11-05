@@ -15,16 +15,13 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store'
 import api from '@/src/config/apiConfig';
 import { Picker } from '@react-native-picker/picker';
+import { IKyc } from '@/src/interfaces/interface';
+import Toast from 'react-native-toast-message';
+import { useAppSelector } from '@/src/store/store';
 
 
 
-interface IUser {
-    fullName: string;
-    phoneNumber: string,
-    homeAddress: string,
-    state: string,
-    lga: string,
-}
+
 
 interface IStates {
     id: string;
@@ -34,38 +31,38 @@ interface IStates {
 
 const verificationIdType = [
     {
-        id:'1',
-        state:'Voters Card',
-    localGovernmentAreas: ''
+        id: '1',
+        state: 'Voters Card',
+        localGovernmentAreas: ''
 
     },
     {
-        id:'2',
-        state:'NIN',
-    localGovernmentAreas: ''
+        id: '2',
+        state: 'NIN',
+        localGovernmentAreas: ''
 
     },
     {
-        id:'3',
-        state:'International Passport',
-    localGovernmentAreas: ''
+        id: '3',
+        state: 'International Passport',
+        localGovernmentAreas: ''
 
     }
 ]
 
-const KycScreen= () => {
+const KycScreen = () => {
     const scale = useSharedValue(1);
     const router = useRouter();
     const slideAnim = useRef(new Animated.Value(50)).current; // Start the view off-screen (500 units down)
     const [secure, setSecure] = useState(true);
     const navigation = useNavigation();
     const [image, setImage] = useState<string | null>(null);
-    const [userInfo, setUserInfo] = useState<IUser | null>(null);
-    const [initialValues, setInitialValues] = useState<IUser | null>(null);
+    const [initialValues, setInitialValues] = useState<IKyc | null>(null);
     const [states, setStates] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
     const [lgas, setLgas] = useState<IStates[]>([{ id: '', state: '', localGovernmentAreas: '' }]);
+    const { id, token } = useAppSelector((state) => state.userslice.userBio);
     const [stateId, setStateId] = useState<number>(1);
-    
+
 
 
 
@@ -87,21 +84,7 @@ const KycScreen= () => {
         }
     };
 
-    const fetchValue = async (key: string) => {
-        try {
-            const result = await SecureStore.getItemAsync(key);
-            if (result) {
-                const parsedResult: IUser = JSON.parse(result); // Parse the stored JSON string
-                // console.log({ inStore: parsedResult })
-                setInitialValues({ ...parsedResult }); // Set as initial values for Formik
-                // console.log('Data retrieved:', parsedResult);
-            } else {
-                // console.log('No data found for key:', key);
-            }
-        } catch (error) {
-            // console.log('Error fetching data', error);
-        }
-    };
+
 
     const fetchStates = async () => {
         try {
@@ -128,15 +111,8 @@ const KycScreen= () => {
     };
 
     const SignupSchema = Yup.object().shape({
-        fullName: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
-        phoneNumber: Yup.number()
-            .typeError('Must be a number')
-            .min(11, 'Cannot be less than 11 digits')
-            .required('Required'),
-        homeAddress: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
-        lga: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
-        state: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
-
+        idType: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
+        idNumber: Yup.string().min(3, 'Cannot be less than 3 characters').required('Required'),
     });
 
     useEffect(() => {
@@ -148,7 +124,6 @@ const KycScreen= () => {
     }, [slideAnim]);
 
     useEffect(() => {
-        fetchValue('userInfo'); // Fetch user info from SecureStore
         fetchStates();
     }, [navigation]);
 
@@ -176,8 +151,30 @@ const KycScreen= () => {
         });
     }, [navigation]);
 
-    const handleUpdateUser = (body: IUser) => {
-      console.log({filledInfo:body})
+    const handleCompleteKyc = async (body: IKyc) => {
+        try {
+            if(image){
+                let formData = new FormData();
+                formData.append('idType',body?.idType);
+                formData.append('idNumber',body?.idNumber);
+                formData.append('idDocumentFile',image);
+                formData.append('userId',id);
+
+                console.log({sending:formData})
+                const res = await api.post('/user/kyc',formData);
+                if(res.status==200){
+                    Toast.show({
+                        type:'success',
+                        text1:'Kyc completed'
+                    })
+                    router.navigate('../(dashboard)/create')
+                }
+                }
+           
+        } catch (error) {
+            console.log({errorHere:error})
+        }
+        
     };
 
     return (
@@ -192,117 +189,65 @@ const KycScreen= () => {
                         },
                     ]}
                 >
-                    <View  style={{width:'100%', paddingHorizontal:'2%'}}>
-                        <TitleText text='Upload documents'/>
-                        <BodyText text='We need to verify your documents before you can become a seller.'/>
+                    <View style={{ width: '100%', paddingHorizontal: '2%' }}>
+                        <TitleText text='Upload documents.' />
+                        <BodyText text='We need to verify your documents before you can become a seller.' />
                     </View>
                     <Formik
-                        initialValues={initialValues || {
-                            fullName: '',
-                            phoneNumber: '',
-                            homeAddress: '',
-                            lga: '',
-                            state: ''
+                        initialValues={{
+                            idType: '',
+                            idNumber: '',
                         }}
                         validationSchema={SignupSchema}
-                        enableReinitialize
+                        // enableReinitialize
                         onSubmit={(values) => {
-                            handleUpdateUser(values);
+                            handleCompleteKyc(values);
                         }}
                     >
                         {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
                             <Animated.View style={styles.container}>
 
-<View style={[styles.inputContainer, {}]}>
-                                    <BodyText extraStyle={{marginTop:'5%'}} text={'Select ID Type'} />
+                                <View style={[styles.inputContainer, {}]}>
+                                    <BodyText extraStyle={{ marginTop: '5%' }} text={'Select ID Type'} />
                                     <CustomInputField
-                                    type={'select'}
-                                    data={verificationIdType}
+                                        type={'select'}
+                                        data={verificationIdType}
                                         placeholder="Select"
-                                        onChangeText={(e: any) => { setStateId(e.id); setFieldValue('state', e.state) }}
-                                        onBlur={()=>handleBlur('state')}
-                                        value={values.state}
-                                        extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
+                                        onChangeText={(e: any) => { setFieldValue('idType', e.state) }}
+                                        onBlur={() => handleBlur('state')}
+                                        value={values.idType}
+                                        extraStyle={{ padding: 0, paddingHorizontal: 10, borderColor: touched.idType && errors.idType ? 'red' : 'black' }}
                                         lIcon={'id-card-outline'} />
-                                    {touched.fullName && errors.fullName ? <Text style={styles.errorText}>{errors.fullName}</Text> : null}
+                                    {touched.idType && errors.idType ? <Text style={styles.errorText}>{errors.idType}</Text> : null}
                                 </View>
 
-
-                               
-
-
-
-                                
 
                                 <View style={[styles.inputContainer, {}]}>
                                     <BodyText text={'ID Number'} />
                                     <CustomInputField
                                         type='text'
                                         placeholder=""
-                                        onChangeText={handleChange('phoneNumber')}
-                                        onBlur={handleBlur('phoneNumber')}
-                                        value={values.phoneNumber}
-                                        maxLength={11}
-                                        keyboardType="numeric"
-                                        extraStyle={{ borderColor: touched.phoneNumber && errors.phoneNumber ? 'red' : 'black' }}
+                                        onChangeText={handleChange('idNumber')}
+                                        onBlur={handleBlur('idNumber')}
+                                        value={values.idNumber}
+                                        extraStyle={{ borderColor: touched.idNumber && errors.idNumber ? 'red' : 'black' }}
                                         lIcon={'create-outline'} />
-                                    {touched.phoneNumber && errors.phoneNumber ? <Text style={styles.errorText}>{errors.phoneNumber}</Text> : null}
+                                    {touched.idNumber && errors.idNumber ? <Text style={styles.errorText}>{errors.idNumber}</Text> : null}
                                 </View>
 
-                                 <View style={{ minWidth: '100%', alignItems: 'center' }}>
-                                    <TouchableOpacity onPress={handleImagePick} style={{ minWidth: '100%', alignItems: 'center' }}>
+                                <View style={{ minWidth: '100%', justifyContent: 'center', alignItems: 'center', padding: 10, flexDirection: 'row' }}>
+                                    <TouchableOpacity onPress={handleImagePick} style={{ alignItems: 'center' }}>
                                         <MaterialCommunityIcons name="camera-plus-outline" size={50} />
-                                        <CaptionText text="Tap to upload document" />
                                     </TouchableOpacity>
-                                </View> 
 
-                                 <View style={{ minWidth: '100%', alignItems: 'center',marginBottom:'10%' }}>
                                     {image && <Image source={{ uri: image }} style={{ width: 50, height: 50 }} />}
                                 </View>
-
-                                {/* <View style={[styles.inputContainer, {}]}>
-                                    <BodyText text={'Street Address'} />
-                                    <CustomInputField
-                                        placeholder="22 first floor"
-                                        onChangeText={handleChange('homeAddress')}
-                                        onBlur={handleBlur('homeAddress')}
-                                        value={values.homeAddress}
-                                        extraStyle={{ borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
-                                        lIcon={'location-outline'} type={'text'} />
-                                    {touched.homeAddress && errors.homeAddress ? <Text style={styles.errorText}>{errors.homeAddress}</Text> : null}
-                                </View>
-
-                                <View style={[styles.inputContainer, {borderRadius:10}]}>
-                                    <BodyText text={'State'} />
-                                    <CustomInputField
-                                    type={'select'}
-                                    data={states}
-                                        placeholder="Select"
-                                        onChangeText={(e: any) => { setStateId(e.id); setFieldValue('state', e.state) }}
-                                        onBlur={()=>handleBlur('state')}
-                                        value={values.state}
-                                        extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
-                                        lIcon={'bus-outline'} />
-                                    
-                                    {touched.state && errors.state ? <Text style={styles.errorText}>{errors.state}</Text> : null}
-                                </View>
-
-                                <View style={[styles.inputContainer, {borderRadius:10}]}>
-                                    <BodyText text={'LGA'} />
-                                    <CustomInputField
-                                    type={'select'}
-                                    data={lgas}
-                                        placeholder="Select"
-                                        onChangeText={(e: any) => {setFieldValue('lga', e.state) }}
-                                        onBlur={()=>handleBlur('lga')}
-                                        value={values.lga}
-                                        extraStyle={{padding:0,paddingHorizontal:10, borderColor: touched.homeAddress && errors.homeAddress ? 'red' : 'black' }}
-                                        lIcon={'bicycle-outline'} />
-                                    
-                                    {touched.state && errors.state ? <Text style={styles.errorText}>{errors.state}</Text> : null}
-                                </View> */}
-
-
+                                {
+                                    !image &&
+                                    <View style={{ minWidth: '100%', alignItems: 'center', marginBottom: '10%' }}>
+                                        <CaptionText text='Tap to upload file' />
+                                    </View>
+                                }
 
                                 <Pressable
                                     onPress={() => handleSubmit()}

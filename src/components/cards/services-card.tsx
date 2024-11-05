@@ -8,16 +8,7 @@ import { ScaledSheet } from 'react-native-size-matters'
 
 const ServiceCard: React.FC<any> = ({ serviceData, serviceImageUrl,index }) => {
 
-  const handleNavigateToServiceViewScreen = (serviceId: string, serviceName: string) => {
-    router.push({
-      pathname: `../service/[serviceId]`,
-      params: { serviceId: serviceId, serviceName: serviceName }
-    })
-  }
-
   return (
-
-    <TouchableOpacity key={index} onPress={() => handleNavigateToServiceViewScreen(serviceData.id, serviceData.nameOfService)}>
       <View key={index} style={[styles.serviceCard, { backgroundColor: serviceData.colorCode, flex: 1, alignItems: 'flex-start', padding: 5 }]}>
         <View style={{ borderRadius: 10, padding: '4%', minWidth: '100%', minHeight: '30%', maxHeight: '30%' }}>
           <Text style={[styles.p, { fontSize: 14, fontFamily: 'primaryFontBold', color: '#fff' }]}>{serviceData.nameOfService}</Text>
@@ -34,7 +25,6 @@ const ServiceCard: React.FC<any> = ({ serviceData, serviceImageUrl,index }) => {
           />
         </View>
       </View>
-    </TouchableOpacity>
   )
 
 }
